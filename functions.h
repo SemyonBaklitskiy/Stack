@@ -1,39 +1,38 @@
+#ifdef INT
+    typedef long int elem_t;
+#else
+    typedef double elem_t;
+#endif
+
 /// enum type errors
 enum errors {
-    NOERRORS, ///< If no errors happened
-    OVERFLOW, ///< If there was stack overflow (realloc returned NULL in push)
-    UNDERFLOW, ///< If there was stack underflow (pop when size == 0) 
-    MISMATCHSIZE, ///< If there was mismatch between stack size and size in data.txt
-    MISMATCHCAPACITY, ///< If there was mismatch between stack capacity and capacity in data.txt
-    MISMATCHELEMENT, ///< If there was mismatch between stack element(s) and element(s) in data.txt
-    MISMATCHPOINTERTOBUFFER, ///< If there was mismatch between buffer pointer and buffer pointer in data.txt
-    BUFFERISNULL, ///< If realloc returned NULL in pop
-    WRONGPARAMETERS, ///< If wrong parameters were given to stack_constructor (stack_distructor)
-    NULLPTR, ///< If in any function (except c-tor, dis-tor, dump) were given NULL as a parameter
-    FILEWASNTOPEN, ///< If any file wasn`t open
-    STACKDUMP ///< If wrong parameters were given to stack_dump 
+    NOERRORS = 0, ///< If no errors happened
+    OVERFLOW = 1, ///< If there was stack overflow (realloc returned NULL in push)
+    UNDERFLOW = 2, ///< If there was stack underflow (pop when size == 0) 
+    MISMATCHSIZE = 3, ///< If there was mismatch between stack size and size in data.txt
+    MISMATCHCAPACITY = 4, ///< If there was mismatch between stack capacity and capacity in data.txt
+    MISMATCHELEMENT = 5, ///< If there was mismatch between stack element(s) and element(s) in data.txt
+    MISMATCHPOINTERTOBUFFER = 6, ///< If there was mismatch between buffer pointer and buffer pointer in data.txt
+    BUFFERISNULL = 7, ///< If realloc returned NULL in pop
+    WRONGPARAMETERS = 8, ///< If wrong parameters were given to stack_constructor (stack_distructor)
+    NULLPTR = 9, ///< If in any function (except c-tor, dis-tor, dump) were given NULL as a parameter
+    FILEWASNTOPEN = 10, ///< If any file wasn`t open
 };
 
 struct stack {
-    double* buffer;
+    elem_t* buffer;
     unsigned int size;
     unsigned int capacity; 
+    const char* file;
+    const char* function;
+    int line;
 };
 
-bool compare_two_numbers(double a, double b);
+void stack_constructor(struct stack* st, int cp, const char* file, const char* function, const int line);
 
-void stack_constructor(struct stack* stackName, unsigned int size, unsigned int capacity);
+void stack_distructor(struct stack* st);
 
-void stack_distructor(struct stack* stackName);
+elem_t pop(struct stack* st);
 
-void verification(struct stack* stackName);
+void push(struct stack* st, elem_t element);
 
-void resize(struct stack* stackName, unsigned int oldCapacity, unsigned int newCapacity);
-
-void pop(struct stack* stackName, double* element);
-
-void push(struct stack* stackName, double element);
-
-void output_to_file(struct stack* stackName);
-
-void stack_dump(struct stack* stackName, errors error, const char* file, const char* function, const int line);

@@ -1,29 +1,14 @@
 #include "functions.h"
+#define stack_ctor(name, capacity) stack_constructor(name, capacity, __FILE__, __PRETTY_FUNCTION__, __LINE__)
 
 int main() {
     struct stack st;
-    stack_constructor(&st, 0, 2);
+    
+    stack_ctor(&st, 2);
 
-    verification(&st);
-    push(&st, 1.2);
-    verification(&st);
+    push(&st, 11);
+    push(&st, -2);
+    pop(&st);
 
-    verification(&st);
-    push(&st, 5.1);
-    verification(&st);
-
-    verification(&st);
-    push(&st, -3.14);
-    verification(&st);
-
-    double element = 0;
-
-    verification(&st);
-    pop(&st, &element);
-    verification(&st);
-
-    verification(&st);
-    pop(&st, &element);
-    verification(&st);
-
+    stack_distructor(&st);
 }

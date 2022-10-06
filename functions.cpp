@@ -4,251 +4,282 @@
 #include <assert.h>
 #include "functions.h"
 
-void stack_constructor(struct stack* stackName, unsigned int size, unsigned int capacity) {
-    if ((size > capacity) || (stackName == NULL))
-        stack_dump(stackName, WRONGPARAMETERS, __FILE__, __PRETTY_FUNCTION__, __LINE__);
+#define my_assert(condition, error) processor_of_errors(condition, error, __FILE__, __PRETTY_FUNCTION__, __LINE__)
+#define dump(condition, error) stack_dump(condition, st, error, __FILE__, __PRETTY_FUNCTION__, __LINE__)
 
-    if (capacity == 0)
-        capacity = 1;
+#ifdef INT
+    #define FORMAT "%ld\n"
+    #define TEXT "data[%d] = %ld\n"
+    #define POISON 0XDEADDEAD
 
-    stackName->buffer = (double*)calloc(capacity, sizeof(double));
-    stackName->capacity = capacity;
-    stackName->size = size;
+#else
 
-    for (unsigned int i = 0; i < capacity; ++i) 
-        stackName->buffer[i] = NAN;  
+    #define POISON NAN
+    #define FORMAT "%lf\n"
+    #define TEXT "data[%d] = %lf\n"
+#endif
 
-    output_to_file(stackName);
-}
+const char* logFile = "log.txt";
+const char* dataFile = "data.txt";
 
-void resize(struct stack* stackName, unsigned int oldCapacity, unsigned int newCapacity) {
-    if (stackName == NULL)
-        stack_dump(stackName, NULLPTR, __FILE__, __PRETTY_FUNCTION__, __LINE__);
-
-    stackName->buffer = (double*)realloc(stackName->buffer, newCapacity * sizeof(double));
-
-    if (stackName->buffer != NULL) {
-        for (unsigned int i = oldCapacity; i < newCapacity; ++i) 
-            stackName->buffer[i] = NAN;
-    }
-}
-
-void push(struct stack* stackName, double element) {
-    if (stackName == NULL)
-        stack_dump(stackName, NULLPTR, __FILE__, __PRETTY_FUNCTION__, __LINE__);
-
-    unsigned int size = stackName->size;
-    unsigned int capacity = stackName->capacity;
-    
-    if (size >= capacity) {
-        resize(stackName, capacity, capacity * 2);
-
-        if (stackName->buffer == NULL) 
-            stack_dump(stackName, OVERFLOW, __FILE__, __PRETTY_FUNCTION__, __LINE__);
-
-        ++size;
-        stackName->size = size;
-        capacity *= 2;
-        stackName->capacity = capacity;
-
-        stackName->buffer[size - 1] = element;
-
-        output_to_file(stackName);
+static void processor_of_errors(bool condition, errors error, const char* function, const char* name, const int line) { 
+    if (condition != 0) 
         return;
-    }
-
-    ++size;
-    stackName->size = size;
-
-    stackName->buffer[size - 1] = element;
-
-    output_to_file(stackName);
-}
-
-void pop(struct stack* stackName, double* element) {
-    if (stackName == NULL || element == NULL)
-        stack_dump(stackName, NULLPTR, __FILE__, __PRETTY_FUNCTION__, __LINE__);
-
-    unsigned int size = stackName->size;
-    unsigned int capacity = stackName->capacity;
-
-    if (size == 0) 
-        stack_dump(stackName, UNDERFLOW, __FILE__, __PRETTY_FUNCTION__, __LINE__);
-
-    *element = stackName->buffer[size - 1];
-
-    stackName->buffer[size - 1] = NAN;
-
-    --size;
-    stackName->size = size;
     
-    if ((capacity / 2 == size) && (capacity > 1)) {
-        resize(stackName, capacity, capacity / 2);
+    switch (error) {
 
-        if (stackName->buffer == NULL)
-            stack_dump(stackName, BUFFERISNULL, __FILE__, __PRETTY_FUNCTION__, __LINE__);
+    case FILEWASNTOPEN:
+        printf("In file %s function %s line %d: file wasn`t open, programm finished\n", function, name, line);
+        break;
 
-        stackName->capacity = capacity / 2;
+    case NULLPTR:
+        printf("In file %s function %s line %d: NULL was given as a parameter, programm finished\n", function, name, line);
+        break;
+
+    default:
+        break;
     }
 
-    output_to_file(stackName);
+    assert(0);   
 }
 
-void stack_distructor(struct stack* stackName) {
-    if (stackName == NULL)
-        stack_dump(stackName, WRONGPARAMETERS, __FILE__, __PRETTY_FUNCTION__, __LINE__);
+static bool file_is_open(FILE* stream) {
+    if (stream == NULL) 
+        return false;
 
-    stackName->size = 0;
-    stackName->capacity = 0;
-    free(stackName->buffer);
-    stackName->buffer = NULL;
-
-    output_to_file(stackName);
+    return true;   
 }
 
-void verification(struct stack* stackName) {
-    if (stackName == NULL)
-        stack_dump(stackName, NULLPTR, __FILE__, __PRETTY_FUNCTION__, __LINE__);
+static void info_in_logfile(struct stack* st, FILE* stream) {
+    fprintf(stream, "Stack created in file %s in function %s on line %d\n", st->file, st->function, st->line);
+    fprintf(stream, "Size = %d\n", st->size);
+    fprintf(stream, "Capacity = %d\n", st->capacity);
+    fprintf(stream, "Pointer to buffer = %p\n", st->buffer);
 
-    FILE* file = fopen("data.txt", "r");
-    if (file == NULL)
-       stack_dump(stackName, FILEWASNTOPEN, __FILE__, __PRETTY_FUNCTION__, __LINE__);
+    if (st->buffer == NULL) 
+        return;
 
-    unsigned int capacity = stackName->capacity;
-    unsigned int size = stackName->size;
-    double* buffer = stackName->buffer;
-
-    unsigned int dataCapacity = 0;
-    unsigned int dataSize = 0;
-    double* dataBuffer = NULL;
-
-    fscanf(file, "%d\n%d\n%p\n", &dataSize, &dataCapacity, &dataBuffer);
-
-    if (dataSize != size) 
-        stack_dump(stackName, MISMATCHSIZE, __FILE__, __PRETTY_FUNCTION__, __LINE__);
-     
-    if (dataCapacity != capacity)
-        stack_dump(stackName, MISMATCHCAPACITY, __FILE__, __PRETTY_FUNCTION__, __LINE__);
-
-    if (dataBuffer != buffer) {
-        stack_dump(stackName, MISMATCHPOINTERTOBUFFER, __FILE__, __PRETTY_FUNCTION__, __LINE__);
-    }
-
-    if ((dataBuffer != NULL) && (buffer != NULL)) {
-        for (unsigned int i = 0; i < capacity; ++i) {
-            double dataElement = NAN;
-            fscanf(file, "%lf\n", &dataElement);
-
-            if (!compare_two_numbers(dataElement, stackName->buffer[i]))
-                stack_dump(stackName, MISMATCHELEMENT, __FILE__, __PRETTY_FUNCTION__, __LINE__);
+    for (unsigned int i = 0; i < st->capacity; ++i) {
+    #ifdef INT
+        if (st->buffer[i] == POISON) {
+            fprintf(stream, "data[%d] = %ld = %lX\n", i, st->buffer[i], st->buffer[i]);
+            continue;
         }
+
+    #endif
+
+        fprintf(stream, TEXT, i, st->buffer[i]);
     }
-
-    stack_dump(stackName, NOERRORS, __FILE__, __PRETTY_FUNCTION__, __LINE__);
-
-    fclose(file);
+    
 }
 
-void output_to_file(struct stack* stackName) {
-    if (stackName == NULL)
-        stack_dump(stackName, NULLPTR, __FILE__, __PRETTY_FUNCTION__, __LINE__);
+static void stack_dump(bool condition, struct stack* st, errors error, const char* file, const char* function, const int line) {
+    if (condition == 0) 
+        return;
 
-    FILE* file = fopen("data.txt", "w");
-    if (file == NULL)
-       stack_dump(stackName, FILEWASNTOPEN, __FILE__, __PRETTY_FUNCTION__, __LINE__); 
+    my_assert(st != NULL && file != NULL && function != NULL, NULLPTR);
 
-    unsigned int capacity = stackName->capacity;
-    unsigned int size = stackName->size;
-    double* buffer = stackName->buffer;
+    FILE* stream = fopen(logFile, "w");
+    my_assert(file_is_open(stream), FILEWASNTOPEN);
+
+    fprintf(stream, "In file %s in function %s in line %d error %d was happened.\nLook also at data.txt\n", file, function, line, error);
+    info_in_logfile(st, stream);
+
+    fclose(stream);
+    printf("Look at the log.txt\n");
+    assert(0);   
+}
+
+static void output_to_file(struct stack* st) {
+    my_assert(st != NULL, NULLPTR);
+
+    FILE* file = fopen(dataFile, "w");
+    my_assert(file_is_open(file), FILEWASNTOPEN); 
+
+    unsigned int capacity = st->capacity;
+    unsigned int size = st->size;
+    elem_t* buffer = st->buffer;
 
     fprintf(file, "%d\n%d\n%p\n", size, capacity, buffer);
 
     if (buffer != NULL) {
-        for (unsigned int i = 0; i < capacity; ++i) {
-            fprintf(file, "%lf\n", buffer[i]);
-        }
+        for (unsigned int i = 0; i < capacity; ++i) 
+            fprintf(file, FORMAT, buffer[i]);
+        
     }
 
     fclose(file);
 }
 
-void stack_dump(struct stack* stackName, errors error, const char* file, const char* function, const int line) {
-    if (stackName == NULL || file == NULL || function == NULL) {
-       printf("In file %s in function %s in line %d error %d was happened.\nLook also data.txt\n", __FILE__, __PRETTY_FUNCTION__, __LINE__, STACKDUMP);
-       assert(0);
-    }
+static void fill_poison(struct stack* st, unsigned int leftBorder, unsigned int rightBorder) {
+    my_assert(st != NULL, NULLPTR);
 
-    if (error == NOERRORS) {    
-        FILE* stream = fopen("log.txt", "w");
-        if (stream == NULL) {
-            printf("log.txt wasn`t open look info below:\n");
-            printf("No errors in stack code %d\n", NOERRORS);
-            printf("Size = %d\n", stackName->size);
-            printf("Capacity = %d\n", stackName->capacity);
-            printf("Pointer to buffer = %p\n", stackName->buffer);
-
-            if (stackName->buffer != NULL) {
-                for (unsigned int i = 0; i < stackName->capacity; ++i) 
-                    printf("data[%d] = %lf\n", i, stackName->buffer[i]);
-            }
-
-            return;
-        }
-
-        fprintf(stream, "No errors in stack code %d\n", NOERRORS);
-        fprintf(stream, "Size = %d\n", stackName->size);
-        fprintf(stream, "Capacity = %d\n", stackName->capacity);
-        fprintf(stream, "Pointer to buffer = %p\n", stackName->buffer);
-
-        if (stackName->buffer != NULL) {
-            for (unsigned int i = 0; i < stackName->capacity; ++i) 
-                fprintf(stream, "data[%d] = %lf\n", i, stackName->buffer[i]);
-        }
-
-        fclose(stream);
-        return;
-    }
-
-    FILE* stream = fopen("log.txt", "w");
-    if (stream == NULL) {
-        printf("log.txt wasn`t open look info below:\n");
-        printf("In file %s in function %s in line %d error %d was happened.\n Look also data.txt\n", file, function, line, error);
-        printf("Size = %d\n", stackName->size);
-        printf("Capacity = %d\n", stackName->capacity);
-        printf("Pointer to buffer = %p\n", stackName->buffer);
-
-        if (stackName->buffer != NULL) {
-            for (unsigned int i = 0; i < stackName->capacity; ++i) 
-                printf("data[%d] = %lf\n", i, stackName->buffer[i]);
-        }
-
-        assert(0);
-    }
-
-    fprintf(stream, "In file %s in function %s in line %d error %d was happened.\nLook also data.txt\n", file, function, line, error);
-    fprintf(stream, "Size = %d\n", stackName->size);
-    fprintf(stream, "Capacity = %d\n", stackName->capacity);
-    fprintf(stream, "Pointer to buffer = %p\n", stackName->buffer);
-
-    if (stackName->buffer != NULL) {
-        for (unsigned int i = 0; i < stackName->capacity; ++i) 
-            fprintf(stream, "data[%d] = %lf\n", i, stackName->buffer[i]);
-    }
-
-    fclose(stream);
-    printf("Look at the log.txt\n");
-    assert(0);
+    for (unsigned int i = leftBorder; i < rightBorder; ++i) 
+        st->buffer[i] = POISON;
 }
 
-bool compare_two_numbers(double a, double b) {
+static bool compare_two_numbers(elem_t a, elem_t b) {
+#ifdef INT
+    return a == b;
+
+#else
+
     if (isnan(a) && isnan(b)) 
         return true;
 
-    double epsilon = 0.00001;
+    elem_t epsilon = 0.00001;
 
     if (fabs(a - b) <= epsilon) 
         return true;
     
     return false;
+#endif
 }
+
+static void verification(struct stack* st) {
+    my_assert(st != NULL, NULLPTR);
+
+    FILE* file = fopen(dataFile, "r");
+    my_assert(file_is_open(file), FILEWASNTOPEN);
+
+    unsigned int capacity = st->capacity;
+    unsigned int size = st->size;
+    elem_t* buffer = st->buffer;
+
+    unsigned int dataCapacity = 0;
+    unsigned int dataSize = 0;
+    elem_t* dataBuffer = NULL;
+
+    fscanf(file, "%d\n%d\n%p\n", &dataSize, &dataCapacity, &dataBuffer);
+
+    dump(dataSize != size, MISMATCHSIZE); 
+     
+    dump(dataCapacity != capacity, MISMATCHCAPACITY);
+
+    dump(dataBuffer != buffer, MISMATCHPOINTERTOBUFFER); 
+
+    if ((dataBuffer != NULL) && (buffer != NULL)) {
+        for (unsigned int i = 0; i < capacity; ++i) {
+            elem_t dataElement = POISON;
+
+            fscanf(file, FORMAT, &dataElement);
+
+            dump(!compare_two_numbers(dataElement, st->buffer[i]), MISMATCHELEMENT);
+        }
+    }
+
+    fclose(file);
+}
+
+static void resize(struct stack* st, unsigned int oldCapacity, unsigned int newCapacity) {
+    my_assert(st != NULL, NULLPTR);
+
+    st->buffer = (elem_t*)realloc(st->buffer, newCapacity * sizeof(elem_t));
+
+    if (st->buffer != NULL) 
+        fill_poison(st, oldCapacity, newCapacity);
+    
+}
+
+void stack_constructor(struct stack* st, int cp, const char* file, const char* function, const int line) {
+    dump((st == NULL) || (cp < 0) || (file == NULL) || (function == NULL), WRONGPARAMETERS);
+
+    unsigned int capacity = (unsigned int)cp;
+
+    if (capacity == 0)
+        capacity = 1;
+
+    st->buffer = (elem_t*)calloc(capacity, sizeof(elem_t));
+    st->capacity = capacity;
+    st->size = 0; 
+    st->file = file;
+    st->function = function;
+    st->line = line;
+
+    fill_poison(st, 0, capacity);
+
+    output_to_file(st);
+    verification(st);
+}
+
+void push(struct stack* st, elem_t element) {
+    my_assert(st != NULL, NULLPTR);
+
+    verification(st);
+
+    unsigned int size = st->size;
+    unsigned int capacity = st->capacity;
+    
+    if (size >= capacity) {
+        resize(st, capacity, capacity * 2);
+
+        dump(st->buffer == NULL, OVERFLOW); 
+
+        ++size;
+        st->size = size;
+
+        capacity *= 2;
+        st->capacity = capacity;
+
+        st->buffer[size - 1] = element;
+
+        output_to_file(st);
+        verification(st);
+        return;
+    }
+
+    ++size;
+    st->size = size;
+
+    st->buffer[size - 1] = element;
+
+    output_to_file(st);
+    verification(st);
+}
+
+elem_t pop(struct stack* st) {
+    my_assert(st != NULL, NULLPTR);
+
+    verification(st);
+
+    unsigned int size = st->size;
+    unsigned int capacity = st->capacity;
+
+    dump(size == 0, UNDERFLOW); 
+
+    elem_t element = st->buffer[size - 1];
+
+    st->buffer[size - 1] = POISON;
+
+    --size;
+    st->size = size;
+    
+    if (((capacity / 2) >= size) && (capacity > 1)) {
+        resize(st, capacity, capacity / 2); 
+
+        dump(st->buffer == NULL, BUFFERISNULL);
+
+        st->capacity = capacity / 2;
+    }
+
+    output_to_file(st);
+    verification(st);
+    return element;
+}
+
+void stack_distructor(struct stack* st) {
+    dump(st == NULL, WRONGPARAMETERS);
+
+    verification(st);
+
+    st->size = 0;
+    st->capacity = 0;
+    free(st->buffer);
+    st->buffer = NULL;
+
+    output_to_file(st);
+    verification(st);
+}
+
+
 
