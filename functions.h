@@ -26,13 +26,14 @@ struct stack {
     const char* file;
     const char* function;
     int line;
+    const char* name;
 };
 
-void stack_constructor(struct stack* st, int cp, const char* file, const char* function, const int line);
+void stack_constructor(struct stack* st, const int cp, const char* name, const char* file, const char* function, const int line);
 
 void stack_distructor(struct stack* st);
 
 elem_t pop(struct stack* st);
 
-void push(struct stack* st, elem_t element);
+void push(struct stack* st, const elem_t element);
 

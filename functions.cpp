@@ -29,11 +29,11 @@ static void processor_of_errors(bool condition, errors error, const char* functi
     switch (error) {
 
     case FILEWASNTOPEN:
-        printf("In file %s function %s line %d: file wasn`t open, programm finished\n", function, name, line);
+        printf("In file %s function %s on line %d: file wasn`t open, programm finished\n", function, name, line);
         break;
 
     case NULLPTR:
-        printf("In file %s function %s line %d: NULL was given as a parameter, programm finished\n", function, name, line);
+        printf("In file %s function %s on line %d: NULL was given as a parameter, programm finished\n", function, name, line);
         break;
 
     default:
@@ -51,7 +51,9 @@ static bool file_is_open(FILE* stream) {
 }
 
 static void info_in_logfile(struct stack* st, FILE* stream) {
-    fprintf(stream, "Stack created in file %s in function %s on line %d\n", st->file, st->function, st->line);
+    my_assert(st != NULL && stream != NULL, NULLPTR);
+
+    fprintf(stream, "Stack \"%s\" created in file %s in function %s on line %d\n", st->name, st->file, st->function, st->line);
     fprintf(stream, "Size = %d\n", st->size);
     fprintf(stream, "Capacity = %d\n", st->capacity);
     fprintf(stream, "Pointer to buffer = %p\n", st->buffer);
@@ -82,7 +84,7 @@ static void stack_dump(bool condition, struct stack* st, errors error, const cha
     FILE* stream = fopen(logFile, "w");
     my_assert(file_is_open(stream), FILEWASNTOPEN);
 
-    fprintf(stream, "In file %s in function %s in line %d error %d was happened.\nLook also at data.txt\n", file, function, line, error);
+    fprintf(stream, "In file %s in function %s on line %d error %d was happened.\nLook also at data.txt\n", file, function, line, error);
     info_in_logfile(st, stream);
 
     fclose(stream);
@@ -111,7 +113,7 @@ static void output_to_file(struct stack* st) {
     fclose(file);
 }
 
-static void fill_poison(struct stack* st, unsigned int leftBorder, unsigned int rightBorder) {
+static void fill_poison(struct stack* st, const unsigned int leftBorder, const unsigned int rightBorder) {
     my_assert(st != NULL, NULLPTR);
 
     for (unsigned int i = leftBorder; i < rightBorder; ++i) 
@@ -171,7 +173,7 @@ static void verification(struct stack* st) {
     fclose(file);
 }
 
-static void resize(struct stack* st, unsigned int oldCapacity, unsigned int newCapacity) {
+static void resize(struct stack* st, const unsigned int oldCapacity, const unsigned int newCapacity) {
     my_assert(st != NULL, NULLPTR);
 
     st->buffer = (elem_t*)realloc(st->buffer, newCapacity * sizeof(elem_t));
@@ -181,7 +183,7 @@ static void resize(struct stack* st, unsigned int oldCapacity, unsigned int newC
     
 }
 
-void stack_constructor(struct stack* st, int cp, const char* file, const char* function, const int line) {
+void stack_constructor(struct stack* st, const int cp, const char* name, const char* file, const char* function, const int line) {
     dump((st == NULL) || (cp < 0) || (file == NULL) || (function == NULL), WRONGPARAMETERS);
 
     unsigned int capacity = (unsigned int)cp;
@@ -192,6 +194,7 @@ void stack_constructor(struct stack* st, int cp, const char* file, const char* f
     st->buffer = (elem_t*)calloc(capacity, sizeof(elem_t));
     st->capacity = capacity;
     st->size = 0; 
+    st->name = name;
     st->file = file;
     st->function = function;
     st->line = line;
@@ -202,7 +205,7 @@ void stack_constructor(struct stack* st, int cp, const char* file, const char* f
     verification(st);
 }
 
-void push(struct stack* st, elem_t element) {
+void push(struct stack* st, const elem_t element) {
     my_assert(st != NULL, NULLPTR);
 
     verification(st);
