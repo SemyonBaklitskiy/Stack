@@ -1,7 +1,18 @@
+struct point {
+    double x, y, z;
+};
+
+#define CANARY_PROT
+
 #ifdef INT
-    typedef long int elem_t;
-#else
+    typedef int elem_t;
+
+#elif defined DOUBLE
     typedef double elem_t;
+
+#else 
+    typedef point elem_t;
+
 #endif
 
 /// enum type errors
@@ -17,9 +28,14 @@ enum errors {
     WRONGPARAMETERS = 8, ///< If wrong parameters were given to stack_constructor (stack_distructor)
     NULLPTR = 9, ///< If in any function (except c-tor, dis-tor, dump) were given NULL as a parameter
     FILEWASNTOPEN = 10, ///< If any file wasn`t open
+    MISMACHSTACKCANARY = 11,
+    MISMATCHBUFFERCANARY = 12,
 };
 
 struct stack {
+#ifdef CANARY_PROT
+    unsigned long long int leftCanary;
+#endif
     elem_t* buffer;
     unsigned int size;
     unsigned int capacity; 
@@ -27,13 +43,19 @@ struct stack {
     const char* function;
     int line;
     const char* name;
+    errors error;
+#ifdef CANARY_PROT
+    unsigned long long rightCanary;
+#endif
 };
 
-void stack_constructor(struct stack* st, const int cp, const char* name, const char* file, const char* function, const int line);
+errors stack_constructor(struct stack* st, const int cp, const char* name, const char* file, const char* function, const int line);
 
-void stack_distructor(struct stack* st);
+errors stack_distructor(struct stack* st);
 
-elem_t pop(struct stack* st);
+errors stack_pop(struct stack* st, elem_t* element);
 
-void push(struct stack* st, const elem_t element);
+errors stack_push(struct stack* st, const elem_t element);
+
+#define VARNAME(var) #var + (#var[0] == '&')
 
