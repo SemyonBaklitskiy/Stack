@@ -1,30 +1,34 @@
-.PHONY: clean int double int_canary double_canary
+.PHONY: clean int double int_canary double_canary canary
 
 all: main.o functions.o
-	g++ main.o functions.o -o exe
-	./exe
+	g++ bin/main.o bin/functions.o -o bin/exe
+	bin/./exe
 
 int:
-	g++ -Wall -Wextra -D INT functions.h functions.cpp main.cpp -o exe
-	./exe
+	g++ -Wall -Wextra -D INT includes/functions.h src/functions.cpp src/main.cpp -o bin/exe
+	bin/./exe
 
 double:
-	g++ -Wall -Wextra -D DOUBLE functions.h functions.cpp main.cpp -o exe
-	./exe
+	g++ -Wall -Wextra -D DOUBLE includes/functions.h src/functions.cpp src/main.cpp -o bin/exe
+	bin/./exe
 
 int_canary:
-	g++ -Wall -Wextra -D INT -D CANARY_PROT functions.h functions.cpp main.cpp -o exe
-	./exe
+	g++ -Wall -Wextra -D INT -D CANARY_PROT includes/functions.h src/functions.cpp src/main.cpp -o bin/exe
+	bin/./exe
 
 double_canary:
-	g++ -Wall -Wextra -D DOUBLE -D CANARY_PROT functions.h functions.cpp main.cpp -o exe
-	./exe
+	g++ -Wall -Wextra -D DOUBLE -D CANARY_PROT includes/functions.h src/functions.cpp src/main.cpp -o bin/exe
+	bin/./exe
 
-main.o: main.cpp
-	g++ -Wall -Wextra -c main.cpp -o main.o
+canary: 
+	g++ -Wall -Wextra -D CANARY_PROT includes/functions.h src/functions.cpp src/main.cpp -o bin/exe
+	bin/./exe
 
-functions.o: functions.cpp
-	g++ -Wall -Wextra -c functions.cpp -o functions.o
+main.o: src/main.cpp
+	g++ -Wall -Wextra -c src/main.cpp -o bin/main.o
+
+functions.o: src/functions.cpp
+	g++ -Wall -Wextra -c src/functions.cpp -o bin/functions.o
 
 clean:
-	rm exe
+	rm bin/exe bin/functions.o bin/main.o output_files/data.txt

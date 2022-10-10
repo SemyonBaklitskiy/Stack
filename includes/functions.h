@@ -1,8 +1,7 @@
-struct point {
-    double x, y, z;
+struct example {
+    int id;
+    const char* str;
 };
-
-#define CANARY_PROT
 
 #ifdef INT
     typedef int elem_t;
@@ -11,8 +10,7 @@ struct point {
     typedef double elem_t;
 
 #else 
-    typedef point elem_t;
-
+    typedef example elem_t;
 #endif
 
 /// enum type errors
@@ -22,14 +20,14 @@ enum errors {
     UNDERFLOW = 2, ///< If there was stack underflow (pop when size == 0) 
     MISMATCHSIZE = 3, ///< If there was mismatch between stack size and size in data.txt
     MISMATCHCAPACITY = 4, ///< If there was mismatch between stack capacity and capacity in data.txt
-    MISMATCHELEMENT = 5, ///< If there was mismatch between stack element(s) and element(s) in data.txt
+    MISMATCHELEMENT = 5, ///< If there was mismatch between stack element(s) and element(s) in data.txt (only for int and double)
     MISMATCHPOINTERTOBUFFER = 6, ///< If there was mismatch between buffer pointer and buffer pointer in data.txt
     BUFFERISNULL = 7, ///< If realloc returned NULL in pop
     WRONGPARAMETERS = 8, ///< If wrong parameters were given to stack_constructor (stack_distructor)
     NULLPTR = 9, ///< If in any function (except c-tor, dis-tor, dump) were given NULL as a parameter
     FILEWASNTOPEN = 10, ///< If any file wasn`t open
-    MISMACHSTACKCANARY = 11,
-    MISMATCHBUFFERCANARY = 12,
+    MISMACHSTRUCTCANARY = 11, ///< If canary in structure was broken
+    MISMATCHBUFFERCANARY = 12, ///< If canary in buffer was broken
 };
 
 struct stack {
@@ -56,6 +54,10 @@ errors stack_distructor(struct stack* st);
 errors stack_pop(struct stack* st, elem_t* element);
 
 errors stack_push(struct stack* st, const elem_t element);
+
+#ifdef DEBUG
+void debug(struct stack* st);
+#endif
 
 #define VARNAME(var) #var + (#var[0] == '&')
 

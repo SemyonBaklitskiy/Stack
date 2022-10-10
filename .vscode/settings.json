@@ -1,0 +1,11 @@
+{
+    "makefile.launchConfigurations": [
+        {
+            "cwd": "/home/symon/Documents/Ded/Homework/Stack",
+            "binaryPath": "/home/symon/Documents/Ded/Homework/Stack/exe",
+            "binaryArgs": []
+        }
+    ],
+    "C_Cpp.errorSquiggles": "enabled",
+    "problems.showCurrentInStatus": true
+}
