@@ -3,6 +3,9 @@ struct example {
     const char* str;
 };
 
+#define HASH_PROT
+#define CANARY_PROT
+
 #ifdef INT
     typedef int elem_t;
 
@@ -28,11 +31,15 @@ enum errors {
     FILEWASNTOPEN = 10, ///< If any file wasn`t open
     MISMACHSTRUCTCANARY = 11, ///< If canary in structure was broken
     MISMATCHBUFFERCANARY = 12, ///< If canary in buffer was broken
+    MISMATCHHASH = 13, ///< If there was mismatch between current hash and st.hash field
 };
 
 struct stack {
 #ifdef CANARY_PROT
     unsigned long long int leftCanary;
+#endif
+#ifdef HASH_PROT
+    unsigned int hash;
 #endif
     elem_t* buffer;
     unsigned int size;

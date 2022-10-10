@@ -1,8 +1,76 @@
+struct example {
+    int id;
+    const char* str;
+};
+
+#define HASH_PROT
+
+#ifdef INT
+    typedef int elem_t;
+
+#elif defined DOUBLE
+    typedef double elem_t;
+
+#else 
+    typedef example elem_t;
+#endif
+
+/// enum type errors
+enum errors {
+    NOERRORS = 0, ///< If no errors happened
+    OVERFLOW = 1, ///< If there was stack overflow (realloc returned NULL in push)
+    UNDERFLOW = 2, ///< If there was stack underflow (pop when size == 0) 
+    MISMATCHSIZE = 3, ///< If there was mismatch between stack size and size in data.txt
+    MISMATCHCAPACITY = 4, ///< If there was mismatch between stack capacity and capacity in data.txt
+    MISMATCHELEMENT = 5, ///< If there was mismatch between stack element(s) and element(s) in data.txt (only for int and double)
+    MISMATCHPOINTERTOBUFFER = 6, ///< If there was mismatch between buffer pointer and buffer pointer in data.txt
+    BUFFERISNULL = 7, ///< If realloc returned NULL in pop
+    WRONGPARAMETERS = 8, ///< If wrong parameters were given to stack_constructor (stack_distructor)
+    NULLPTR = 9, ///< If in any function (except c-tor, dis-tor, dump) were given NULL as a parameter
+    FILEWASNTOPEN = 10, ///< If any file wasn`t open
+    MISMACHSTRUCTCANARY = 11, ///< If canary in structure was broken
+    MISMATCHBUFFERCANARY = 12, ///< If canary in buffer was broken
+    MISMATCHHASH = 13, ///< If there was mismatch between current hash and st.hash field
+};
+
+struct stack {
+#ifdef CANARY_PROT
+    unsigned long long int leftCanary;
+#endif
+#ifdef HASH_PROT
+    unsigned int hash;
+#endif
+    elem_t* buffer;
+    unsigned int size;
+    unsigned int capacity; 
+    const char* file;
+    const char* function;
+    int line;
+    const char* name;
+    errors error;
+#ifdef CANARY_PROT
+    unsigned long long rightCanary;
+#endif
+};
+
+errors stack_constructor(struct stack* st, const int cp, const char* name, const char* file, const char* function, const int line);
+
+errors stack_distructor(struct stack* st);
+
+errors stack_pop(struct stack* st, elem_t* element);
+
+errors stack_push(struct stack* st, const elem_t element);
+
+#ifdef DEBUG
+void debug(struct stack* st);
+#endif
+
+#define VARNAME(var) #var + (#var[0] == '&')
+
 #include <stdlib.h>
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
-#include "../includes/functions.h"
 
 #define my_assert(error) processor_of_errors(error, __FILE__, __PRETTY_FUNCTION__, __LINE__)
 #define dump(error) stack_dump(st, error, __FILE__, __PRETTY_FUNCTION__, __LINE__)
@@ -48,15 +116,9 @@ const char* debugFile = "output_files/debug.txt";
 
 #ifdef HASH_PROT
 static unsigned int HashRot13(elem_t* st, const unsigned int bytes) {
-
-#ifdef CANARY_PROT
-    unsigned int size = bytes + 2 * sizeof(canaryDefinition);
-#else 
-    unsigned int size = bytes;
-#endif
     unsigned int hash = 0;
 
-    for(unsigned int i = 0; i < size; ++i)
+    for(unsigned int i = 0; i < bytes; ++i)
     {
         hash += (unsigned char)(*((char*)st + i));
         hash -= (hash << 13) | (hash >> 19);
@@ -250,7 +312,8 @@ static errors verification(struct stack* st) {
 #endif
 
 #ifdef HASH_PROT
-    if (HashRot13(st->buffer, st->capacity * sizeof(elem_t)) != st->hash) {
+    unsigned int currentHash = HashRot13(st->buffer, st->capacity * sizeof(elem_t));
+    if (currentHash != st->hash) {
         dump(MISMATCHHASH);
         return MISMATCHHASH;
     }
@@ -599,5 +662,40 @@ void debug(struct stack* st) {
 
 #endif
 
+#ifdef DEBUG
 
+#define stack_distor(pointer) if (stack_distructor(pointer) != NOERRORS) return -1; debug(pointer)
+#define stack_ctor(pointer, capacity) if (stack_constructor(pointer, capacity, VARNAME(pointer),__FILE__, __PRETTY_FUNCTION__, __LINE__) != NOERRORS) return -1; debug(pointer) 
+#define push(pointer, element) if (stack_push(pointer, element) != NOERRORS) return -1; debug(pointer)
+#define pop(pointer, element) if (stack_pop(pointer, element) != NOERRORS) return -1; debug(pointer)
 
+#else 
+
+#define stack_distor(pointer) if (stack_distructor(pointer) != NOERRORS) return -1
+#define stack_ctor(pointer, capacity) if (stack_constructor(pointer, capacity, VARNAME(pointer),__FILE__, __PRETTY_FUNCTION__, __LINE__) != NOERRORS) return -1
+#define push(pointer, element) if (stack_push(pointer, element) != NOERRORS) return -1
+#define pop(pointer, element) if (stack_pop(pointer, element) != NOERRORS) return -1
+
+#endif
+
+int main() {
+    struct stack st;
+    
+    stack_ctor(&st, 2);
+
+    elem_t element;
+
+    for(int i = 0; i < 5; ++i) {
+        element = {i, "abc"};
+        push(&st, element);
+    }
+
+    for(int i = 0; i < 5; ++i) {
+        pop(&st, &element);
+        printf("%d %s\n", element.id, element.str);
+    }
+
+    stack_distor(&st);
+
+    return 0;
+}

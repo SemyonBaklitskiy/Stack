@@ -34,7 +34,7 @@ int main() {
         printf("%d %s\n", element.id, element.str);
     }
 
-    stack_distructor(&st);
+    stack_distor(&st);
 
     return 0;
 }
