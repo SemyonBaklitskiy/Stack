@@ -3,6 +3,7 @@ struct example {
     const char* str;
 };
 
+#define INT
 #define HASH_PROT
 #define CANARY_PROT
 
@@ -18,20 +19,16 @@ struct example {
 
 /// enum type errors
 enum errors {
-    NOERRORS = 0, ///< If no errors happened
-    OVERFLOW = 1, ///< If there was stack overflow (realloc returned NULL in push)
-    UNDERFLOW = 2, ///< If there was stack underflow (pop when size == 0) 
-    MISMATCHSIZE = 3, ///< If there was mismatch between stack size and size in data.txt
-    MISMATCHCAPACITY = 4, ///< If there was mismatch between stack capacity and capacity in data.txt
-    MISMATCHELEMENT = 5, ///< If there was mismatch between stack element(s) and element(s) in data.txt (only for int and double)
-    MISMATCHPOINTERTOBUFFER = 6, ///< If there was mismatch between buffer pointer and buffer pointer in data.txt
-    BUFFERISNULL = 7, ///< If realloc returned NULL in pop
-    WRONGPARAMETERS = 8, ///< If wrong parameters were given to stack_constructor (stack_distructor)
-    NULLPTR = 9, ///< If in any function (except c-tor, dis-tor, dump) were given NULL as a parameter
-    FILEWASNTOPEN = 10, ///< If any file wasn`t open
-    MISMACHSTRUCTCANARY = 11, ///< If canary in structure was broken
-    MISMATCHBUFFERCANARY = 12, ///< If canary in buffer was broken
-    MISMATCHHASH = 13, ///< If there was mismatch between current hash and st.hash field
+    NO_IMPORTANT_ERRORS = 1, ///< If no errors happened
+    OVERFLOW = 2, ///< If there was stack overflow (realloc returned NULL in push)
+    UNDERFLOW = 4, ///< If there was stack underflow (pop when size == 0) 
+    RETURNED_NULL = 8, ///< If realloc returned NULL in pop
+    WRONG_PARAMETERS = 16, ///< If wrong parameters were given to stack_constructor (stack_distructor)
+    NULLPTR = 32, ///< If in any function (except c-tor, dis-tor, dump) were given NULL as a parameter
+    FILE_WASNT_OPEN = 64, ///< If any file wasn`t open
+    MISMACH_STRUCT_CANARY = 128, ///< If canary in structure was broken
+    MISMATCH_BUFFER_CANARY = 256, ///< If canary in buffer was broken
+    MISMATCH_HASH = 512, ///< If there was mismatch between current hash and st.hash field
 };
 
 struct stack {
@@ -48,7 +45,7 @@ struct stack {
     const char* function;
     int line;
     const char* name;
-    errors error;
+    long unsigned int error;
 #ifdef CANARY_PROT
     unsigned long long rightCanary;
 #endif

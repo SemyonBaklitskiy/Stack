@@ -4,6 +4,8 @@ all: main.o functions.o
 	g++ bin/main.o bin/functions.o -o bin/exe
 	bin/./exe
 
+#TODO  C_FLAGS=-Wall -Wextra
+
 int:
 	g++ -Wall -Wextra -D INT includes/functions.h src/functions.cpp src/main.cpp -o bin/exe
 	bin/./exe
@@ -55,4 +57,4 @@ functions.o: src/functions.cpp
 	g++ -Wall -Wextra -c src/functions.cpp -o bin/functions.o
 
 clean:
-	rm bin/exe bin/functions.o bin/main.o output_files/data.txt
+	rm bin/exe bin/functions.o bin/main.o

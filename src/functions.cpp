@@ -4,39 +4,16 @@
 #include <string.h>
 #include "../includes/functions.h"
 
-#define my_assert(error) processor_of_errors(error, __FILE__, __PRETTY_FUNCTION__, __LINE__)
-#define dump(error) stack_dump(st, error, __FILE__, __PRETTY_FUNCTION__, __LINE__)
+#define dump stack_dump(st, __FILE__, __PRETTY_FUNCTION__, __LINE__)
+#define my_assert_if(condition, error, arg) if (condition) {processor_of_errors(error, __FILE__, __PRETTY_FUNCTION__, __LINE__); return arg} 
 
-#ifdef INT
-    #define FORMAT "%d\n"
+static void print_elements(int* buffer, FILE* stream, unsigned int capacity);
+static void print_elements(double* buffer, FILE* stream, unsigned int capacity);
+static void print_elements(elem_t* buffer, FILE* stream, unsigned int capacity);
 
-#ifdef CANARY_PROT
-    #define TEXT "data[%ld] = %d\n"
-#endif
-    
-#ifndef CANARY_PROT
-    #define TEXT "data[%d] = %d\n"
-#endif
-    const unsigned int poison = 0XDEADDA;
+static const long unsigned int poison = 0XDEADDEAD;
 
-#elif defined DOUBLE
-    const long unsigned int poison = 0XDEADDEAD;
-    #define FORMAT "%lf\n"
-
-#ifdef CANARY_PROT
-    #define TEXT "data[%ld] = %lf\n"
-#endif
-    
-#ifndef CANARY_PROT
-    #define TEXT "data[%d] = %lf\n"
-#endif
-
-#else    
-    const long unsigned int poison = 0XDEADDEAD;
-#endif
-
-const char* logFile = "output_files/log.txt";
-const char* dataFile = "output_files/data.txt";
+static const char* logFile = "output_files/log.txt"; 
 
 #ifdef DEBUG
 const char* debugFile = "output_files/debug.txt";
@@ -47,18 +24,17 @@ const char* debugFile = "output_files/debug.txt";
 #endif
 
 #ifdef HASH_PROT
-static unsigned int HashRot13(elem_t* st, const unsigned int bytes) {
+static unsigned int HashRot13(elem_t* buffer, const unsigned int bytes) {
 
 #ifdef CANARY_PROT
-    unsigned int size = bytes + 2 * sizeof(canaryDefinition);
+    char* begin = ((char*)buffer + sizeof(canaryDefinition));
 #else 
-    unsigned int size = bytes;
+    char* begin = (char*)buffer;
 #endif
     unsigned int hash = 0;
 
-    for(unsigned int i = 0; i < size; ++i)
-    {
-        hash += (unsigned char)(*((char*)st + i));
+    for(unsigned int i = 0; i < bytes; ++i) {
+        hash += (unsigned char)(*(begin + i));
         hash -= (hash << 13) | (hash >> 19);
     }
 
@@ -66,19 +42,22 @@ static unsigned int HashRot13(elem_t* st, const unsigned int bytes) {
 }
 #endif
 
-static void processor_of_errors(errors error, const char* function, const char* name, const int line) { 
+static void processor_of_errors(errors error, const char* fileName, const char* functionName, const int line) { 
+    if ((fileName == NULL) || (functionName == NULL))
+        return;
+
     switch (error) {
 
-    case FILEWASNTOPEN:
-        printf("In file %s function %s on line %d: file wasn`t open\n", function, name, line);
+    case FILE_WASNT_OPEN:
+        printf("In file %s function %s on line %d: file wasn`t open\n", fileName, functionName, line);
         break;
 
     case NULLPTR:
-        printf("In file %s function %s on line %d: NULL was given as a parameter\n", function, name, line);
+        printf("In file %s function %s on line %d: NULL was given as a parameter\n", fileName, functionName, line);
         break;
 
     default:
-        break;
+        return;
     }   
 }
 
@@ -89,20 +68,68 @@ static bool file_is_open(FILE* stream) {
     return true;   
 }
 
+static void print_elements(int* buffer, FILE* stream, unsigned int capacity) {
+    my_assert_if(stream == NULL, NULLPTR, ;)
+
+#ifdef CANARY_PROT
+    for (unsigned int i = 0; i < capacity; ++i) 
+        fprintf(stream, "data[%d] = %d\n", i, *((int*)((char*)buffer + sizeof(canaryDefinition) + i * sizeof(int))));
+#else 
+    for (unsigned int i = 0; i < capacity; ++i) 
+        fprintf(stream, "data[%d] = %d\n", i, buffer[i]);
+#endif
+}
+
+static void print_elements(double* buffer, FILE* stream, unsigned int capacity) {
+    my_assert_if(stream == NULL, NULLPTR, ;)
+
+#ifdef CANARY_PROT
+    for (unsigned int i = 0; i < capacity; ++i) 
+        fprintf(stream, "data[%d] = %lf\n", i, *((double*)((char*)buffer + sizeof(canaryDefinition) + i * sizeof(double))));
+#else 
+    for (unsigned int i = 0; i < capacity; ++i) 
+        fprintf(stream, "data[%d] = %lf\n", i, buffer[i]);
+#endif
+}
+
+// static void print_elements(elem_t* buffer, FILE* stream, unsigned int capacity) {
+    /* Write your rules to print elements here */
+// }
+
+static void print_errors(struct stack* st, FILE* stream) {
+    my_assert_if((st == NULL) || (stream == NULL), NULLPTR, ;)
+
+    fprintf(stream, "Errors:\n");
+
+    if (st->error & OVERFLOW)
+        fprintf(stream, "   Stack overflow\n");
+    if (st->error & UNDERFLOW)
+        fprintf(stream, "   Stack underflow\n");
+    if (st->error & RETURNED_NULL)
+        fprintf(stream, "   Stack couldn`t change capacity, calloc returned NULL\n");
+    if (st->error & WRONG_PARAMETERS)
+        fprintf(stream, "   Were given wrong parameters to function stack_constructor\n");
+    if (st->error & MISMACH_STRUCT_CANARY)
+        fprintf(stream, "   Struct canary was broken\n");
+    if (st->error & MISMATCH_BUFFER_CANARY)
+        fprintf(stream, "   Buffer canary was broken\n");
+    if (st->error & MISMATCH_HASH)
+        fprintf(stream, "   Mismatch between hashes\n");
+
+}
+
 static void info_in_logfile(struct stack* st, FILE* stream) {
-    if (st == NULL || stream == NULL) {
-        my_assert(NULLPTR);
-        return;
-    }
+    my_assert_if(st == NULL || stream == NULL, NULLPTR, ;) 
 
     fprintf(stream, "Stack \"%s\" created in file %s in function %s on line %d\n", st->name, st->file, st->function, st->line);
     fprintf(stream, "Size = %d\n", st->size);
     fprintf(stream, "Capacity = %d\n", st->capacity);
     fprintf(stream, "Pointer to buffer = %p\n", st->buffer);
+    print_errors(st, stream);
+
 #ifdef HASH_PROT
     fprintf(stream, "Hash = %d\n", st->hash);
 #endif
-    fprintf(stream, "Error = %d\n", st->error);
 
 #ifdef CANARY_PROT
     fprintf(stream, "Left canary in structure = %llX\n", st->leftCanary);
@@ -111,267 +138,132 @@ static void info_in_logfile(struct stack* st, FILE* stream) {
     fprintf(stream, "Left canary in buffer = %llX\n", *((unsigned long long int*)st->buffer)); 
     fprintf(stream, "Right canary in buffer = %llX\n", *((unsigned long long int*)((char*)st->buffer + sizeof(canaryDefinition) + sizeof(elem_t) * st->capacity)));
 
-#if defined INT || defined DOUBLE
-    if (st->buffer == NULL) 
-        return;
-
-    for (unsigned int i = sizeof(canaryDefinition) / sizeof(elem_t); i < st->capacity + sizeof(canaryDefinition) / sizeof(elem_t); ++i) 
-        fprintf(stream, TEXT, i - sizeof(canaryDefinition) / sizeof(elem_t), st->buffer[i]);
-    
 #endif
 
-#endif
+    print_elements(st->buffer, stream, st->capacity);
 
-#ifndef CANARY_PROT
-
-#if defined INT || defined DOUBLE
-    if (st->buffer == NULL) 
-        return;
-
-    for (unsigned int i = 0; i < st->capacity; ++i) 
-        fprintf(stream, TEXT, i, st->buffer[i]);
-    
-#endif
-
-#endif
-    
+    fprintf(stream, "............................................................\n");   
 }
 
-static void stack_dump(struct stack* st, errors error, const char* file, const char* function, const int line) {
-    if (st == NULL || file == NULL || function == NULL) {
-        my_assert(NULLPTR);
-        return;
-    }
-
-    st->error = error;
+static void stack_dump(struct stack* st, const char* file, const char* function, const int line) {
+    my_assert_if((st == NULL) || (file == NULL) || (function == NULL), NULLPTR, ;) 
 
     FILE* stream = fopen(logFile, "w");
 
-    if (!file_is_open(stream)) {
-        my_assert(FILEWASNTOPEN);
-        return;
-    }
+    my_assert_if(!file_is_open(stream), FILE_WASNT_OPEN, ;)
 
-    fprintf(stream, "In file %s in function %s on line %d error %d was happened.\nLook also at output_files/data.txt\n", file, function, line, error);
+    fprintf(stream, "In file %s in function %s on line %d stack_dump called\n", file, function, line);
     info_in_logfile(st, stream);
 
     fclose(stream);
     printf("Look at the output_files/log.txt\n");   
 }
 
-static void output_to_file(struct stack* st) {
-    if (st == NULL) {
-        my_assert(NULLPTR);
-        return;
-    }
-
-    FILE* file = fopen(dataFile, "w");
-
-    if (!file_is_open(file)) {
-        my_assert(FILEWASNTOPEN); 
-        return;
-    }
-
-    unsigned int capacity = st->capacity;
-    unsigned int size = st->size;
-    elem_t* buffer = st->buffer;
-
-    fprintf(file, "%d\n%d\n%p\n", size, capacity, buffer);
-
-#if defined INT || defined DOUBLE
-
-#ifdef CANARY_PROT
-    if (buffer != NULL) {
-        for (unsigned int i = sizeof(canaryDefinition) / sizeof(elem_t); i < capacity + sizeof(canaryDefinition) / sizeof(elem_t); ++i) 
-            fprintf(file, FORMAT, buffer[i]);
-    }
-
-#endif
-
-#ifndef CANARY_PROT
-    if (buffer != NULL) {
-        for (unsigned int i = 0; i < capacity; ++i) 
-            fprintf(file, FORMAT, buffer[i]);
-
-    }
-#endif
-
-#endif
-
-    fclose(file);
-}
-
-#if defined INT || defined DOUBLE
-
-static bool compare_two_numbers(elem_t a, elem_t b) {
-#ifdef INT
-    return a == b;
-
-#else
-    elem_t epsilon = 0.00001;
-
-    if (fabs(a - b) <= epsilon) 
-        return true;
-    
-    return false;
-#endif
-}
-
-#endif
+#if defined CANARY_PROT || defined HASH_PROT
 
 static errors verification(struct stack* st) {
-    if (st == NULL) {
-        my_assert(NULLPTR);
-        return NULLPTR;
-    }
-
-    FILE* file = fopen(dataFile, "r");
-
-    if (!file_is_open(file)) {
-        my_assert(FILEWASNTOPEN);
-        return FILEWASNTOPEN;
-    }
+    my_assert_if(st == NULL, NULLPTR, NULLPTR;) 
+    bool errorFound = false;
 
 #ifdef CANARY_PROT
     unsigned long long int leftCanary = st->leftCanary;
     unsigned long long int rightCanary = st->rightCanary;
 
     if ((leftCanary != canaryDefinition) || (rightCanary != canaryDefinition)) {
-        dump(MISMACHSTRUCTCANARY);
-        return MISMACHSTRUCTCANARY;
+        st->error |= MISMACH_STRUCT_CANARY;
+        errorFound = true;
     }
     
     if (((*((unsigned long long int*)st->buffer)) != canaryDefinition) || 
         ((*((unsigned long long int*)((char*)st->buffer + sizeof(canaryDefinition) + st->capacity * sizeof(elem_t)))) != canaryDefinition)) {
-            dump(MISMATCHBUFFERCANARY);
-            return MISMATCHBUFFERCANARY;
-     }
+            st->error |= MISMATCH_BUFFER_CANARY;
+            errorFound = true;
+    }
             
 #endif
 
 #ifdef HASH_PROT
     if (HashRot13(st->buffer, st->capacity * sizeof(elem_t)) != st->hash) {
-        dump(MISMATCHHASH);
-        return MISMATCHHASH;
+        st->error |= MISMATCH_HASH;
+        errorFound = true;
     }
 #endif
 
-    unsigned int capacity = st->capacity;
-    unsigned int size = st->size;
-    elem_t* buffer = st->buffer;
+    if (errorFound) {
+        dump;
+        return MISMACH_STRUCT_CANARY;
 
-    unsigned int dataCapacity = 0;
-    unsigned int dataSize = 0;
-    elem_t* dataBuffer = NULL;
-
-    fscanf(file, "%d\n%d\n%p\n", &dataSize, &dataCapacity, &dataBuffer);
-
-    if (dataSize != size) {
-        fclose(file);
-        dump(MISMATCHSIZE);
-        return MISMATCHSIZE;
-    } 
-     
-    if (dataCapacity != capacity) {
-        fclose(file);
-        dump(MISMATCHCAPACITY);
-        return MISMATCHCAPACITY;
-    }   
-
-    if (dataBuffer != buffer) {
-        fclose(file);
-        dump(MISMATCHPOINTERTOBUFFER);
-        return MISMATCHPOINTERTOBUFFER;
-    } 
-
-#if defined INT || defined DOUBLE
-
-#ifdef CANARY_PROT
-    if ((dataBuffer != NULL) && (buffer != NULL)) {
-        for (unsigned int i = sizeof(canaryDefinition) / sizeof(elem_t); i < capacity + sizeof(canaryDefinition) / sizeof(elem_t); ++i) {
-            elem_t dataElement = poison;
-
-            fscanf(file, FORMAT, &dataElement);
-
-            if (!compare_two_numbers(dataElement, st->buffer[i])) {
-                fclose(file);
-                dump(MISMATCHELEMENT);
-                return MISMATCHELEMENT;
-            }
-        }
+    } else {
+        return NO_IMPORTANT_ERRORS;
     }
-
-#endif
-
-#ifndef CANARY_PROT
-
-    if ((dataBuffer != NULL) && (buffer != NULL)) {
-        for (unsigned int i = 0; i < capacity; ++i) {
-            elem_t dataElement = poison;
-
-            fscanf(file, FORMAT, &dataElement);
-
-            if (!compare_two_numbers(dataElement, st->buffer[i])) {
-                fclose(file);
-                dump(MISMATCHELEMENT);
-                return MISMATCHELEMENT;
-            }
-        }
-    }
-#endif
-
-#endif
-
-    fclose(file);
-    return NOERRORS;
 }
 
-static void resize(struct stack* st, const unsigned int oldCapacity, const unsigned int newCapacity) {
-    if (st == NULL){
-        my_assert(NULLPTR);
-        return;
-    }
+#endif
+
+static errors resize(struct stack* st, const unsigned int oldCapacity, const unsigned int newCapacity) {
+    my_assert_if(st == NULL, NULLPTR, NULLPTR;) 
 
 #ifdef CANARY_PROT
     st->buffer = (elem_t*)realloc(st->buffer, newCapacity * sizeof(elem_t) + 2 * sizeof(canaryDefinition));    
     
-    if (st->buffer != NULL) {
-        *((unsigned long long int*)st->buffer) = canaryDefinition; 
-        *((unsigned long long int*)((char*)st->buffer + sizeof(canaryDefinition) + newCapacity * sizeof(elem_t))) = canaryDefinition;
+    if (st->buffer == NULL) 
+        return RETURNED_NULL;
 
-        if (newCapacity > oldCapacity)
-            memset((char*)st->buffer + sizeof(canaryDefinition) + oldCapacity * sizeof(elem_t), poison, (newCapacity - oldCapacity) * sizeof(elem_t));
+    *((unsigned long long int*)st->buffer) = canaryDefinition; 
+    *((unsigned long long int*)((char*)st->buffer + sizeof(canaryDefinition) + newCapacity * sizeof(elem_t))) = canaryDefinition;
 
-    }
+    if (newCapacity > oldCapacity)
+        memset((char*)st->buffer + sizeof(canaryDefinition) + oldCapacity * sizeof(elem_t), poison, (newCapacity - oldCapacity) * sizeof(elem_t));
+        
+
+    
 #endif
 
 #ifndef CANARY_PROT
-    if (st->buffer != NULL) {
-        st->buffer = (elem_t*)realloc(st->buffer, newCapacity * sizeof(elem_t));
+    st->buffer = (elem_t*)realloc(st->buffer, newCapacity * sizeof(elem_t));
 
-        if (newCapacity > oldCapacity)
-            memset((char*)st->buffer + oldCapacity * sizeof(elem_t), poison, (newCapacity - oldCapacity) * sizeof(elem_t));
-    }
+    if (st->buffer == NULL) 
+       return RETURNED_NULL;
+
+    if (newCapacity > oldCapacity)
+        memset((char*)st->buffer + oldCapacity * sizeof(elem_t), poison, (newCapacity - oldCapacity) * sizeof(elem_t)); 
+    
 
 #endif 
+    return NO_IMPORTANT_ERRORS;
 }
 
 errors stack_constructor(struct stack* st, const int cp, const char* name, const char* file, const char* function, const int line) {
-    if ((st == NULL) || (cp < 0) || (file == NULL) || (function == NULL) || (name == NULL)) {
-        dump(WRONGPARAMETERS);
-        return WRONGPARAMETERS;
+    my_assert_if(st == NULL, NULLPTR, NULLPTR;) 
+
+    if ((cp <= 0) || (file == NULL) || (function == NULL) || (name == NULL)) {
+        st->error = 0;
+        st->error |= WRONG_PARAMETERS;
+        dump;
+        return WRONG_PARAMETERS;
     }
 
     unsigned int capacity = (unsigned int)cp;
 
-    if (capacity == 0)
-        capacity = 1;
+    st->capacity = capacity;
+    st->size = 0; 
+    st->name = name;
+    st->file = file;
+    st->function = function;
+    st->line = line;
+    st->error = 0;
 
 #ifdef CANARY_PROT
     st->rightCanary = canaryDefinition;
     st->leftCanary = canaryDefinition;
 
-    st->buffer = (elem_t*)calloc(capacity * sizeof(elem_t) + 2 * (sizeof(canaryDefinition)), sizeof(char));   
+    st->buffer = (elem_t*)calloc(capacity * sizeof(elem_t) + 2 * (sizeof(canaryDefinition)), sizeof(char));
+
+    if (st->buffer == NULL) {
+        st->error |= RETURNED_NULL;
+        dump;
+        return RETURNED_NULL;
+    }   
 
     *((unsigned long long int*)st->buffer) = canaryDefinition; 
     *((unsigned long long int*)((char*)st->buffer + sizeof(canaryDefinition) + capacity * sizeof(elem_t))) = canaryDefinition;
@@ -383,45 +275,50 @@ errors stack_constructor(struct stack* st, const int cp, const char* name, const
 #ifndef CANARY_PROT
     st->buffer = (elem_t*)calloc(capacity, sizeof(elem_t));
 
+    if (st->buffer == NULL) {
+        st->error |= RETURNED_NULL;
+        dump;
+        return RETURNED_NULL;
+    }
+
     memset(st->buffer, poison, capacity * sizeof(elem_t));
 
 #endif
-
-    st->capacity = capacity;
-    st->size = 0; 
-    st->name = name;
-    st->file = file;
-    st->function = function;
-    st->line = line;
-    st->error = NOERRORS;
 
 #ifdef HASH_PROT
     st->hash = HashRot13(st->buffer, capacity * sizeof(elem_t));
 #endif
 
-    output_to_file(st);
+#if defined HASH_PROT || defined CANARY_PROT
     return verification(st);
+#else
+    return NO_IMPORTANT_ERRORS;
+#endif
+
 }
 
 errors stack_push(struct stack* st, const elem_t element) {
-    if (st == NULL) {
-        my_assert(NULLPTR);
-        return NULLPTR;
-    }
+    my_assert_if(st == NULL, NULLPTR, NULLPTR;) 
 
+#if defined HASH_PROT || defined CANARY_PROT
     errors error = verification(st);
-    if (error != NOERRORS)
+    if (error != NO_IMPORTANT_ERRORS)
         return error;
+#endif
 
     unsigned int size = st->size;
     unsigned int capacity = st->capacity;
     
     if (size >= capacity) {
-        resize(st, capacity, capacity * 2);
+        errors errorInResize = resize(st, capacity, capacity * 2);
 
-        if (st->buffer == NULL) {
-            dump(OVERFLOW); 
-            return (OVERFLOW);
+        if (errorInResize == NULLPTR) { 
+            return NULLPTR;
+
+        }   else if (errorInResize == RETURNED_NULL) {
+            st->error |= OVERFLOW;
+            dump;
+            return OVERFLOW;
         }
 
         ++size;
@@ -443,8 +340,11 @@ errors stack_push(struct stack* st, const elem_t element) {
         st->hash = HashRot13(st->buffer, capacity * sizeof(elem_t));
     #endif
 
-        output_to_file(st);
+    #if defined HASH_PROT || defined CANARY_PROT
         return verification(st);   
+    #else 
+        return NO_IMPORTANT_ERRORS;
+    #endif
     }
 
     ++size;
@@ -463,25 +363,28 @@ errors stack_push(struct stack* st, const elem_t element) {
     st->hash = HashRot13(st->buffer, capacity * sizeof(elem_t));
 #endif
 
-    output_to_file(st);
+#if defined HASH_PROT || defined CANARY_PROT
     return verification(st);
+#else 
+    return NO_IMPORTANT_ERRORS;
+#endif
 }
 
 errors stack_pop(struct stack* st, elem_t* element) {
-    if (st == NULL) {
-        my_assert(NULLPTR);
-        return NULLPTR;
-    } 
+    my_assert_if(st == NULL, NULLPTR, NULLPTR;) 
 
+#if defined HASH_PROT || defined CANARY_PROT
     errors error = verification(st);
-    if (error != NOERRORS)
+    if (error != NO_IMPORTANT_ERRORS)
         return error;
+#endif
 
     unsigned int size = st->size;
     unsigned int capacity = st->capacity;
 
     if (size == 0) {
-        dump(UNDERFLOW); 
+        st->error |= UNDERFLOW;
+        dump; 
         return UNDERFLOW;
     }
 
@@ -499,11 +402,15 @@ errors stack_pop(struct stack* st, elem_t* element) {
     st->size = size;
     
     if (((capacity / 2) >= size) && (capacity > 1)) {
-        resize(st, capacity, capacity / 2); 
+        errors errorInResize = resize(st, capacity, capacity / 2); 
 
-        if (st->buffer == NULL) {
-            dump(BUFFERISNULL);
-            return BUFFERISNULL;
+        if (errorInResize == NULLPTR) {
+            return NULLPTR;
+
+        } else if (errorInResize == RETURNED_NULL) {
+            st->error |= RETURNED_NULL;
+            dump;
+            return RETURNED_NULL;
         }
 
         st->capacity = capacity / 2;
@@ -513,29 +420,39 @@ errors stack_pop(struct stack* st, elem_t* element) {
     st->hash = HashRot13(st->buffer, st->capacity * sizeof(elem_t));
 #endif
 
-    output_to_file(st);
+#if defined HASH_PROT || defined CANARY_PROT
     return verification(st);
+#else 
+    return NO_IMPORTANT_ERRORS;
+#endif
 }
 
 errors stack_distructor(struct stack* st) {
-    if (st == NULL) {
-        dump(WRONGPARAMETERS);
-        return WRONGPARAMETERS;
-    }
+    my_assert_if(st == NULL, NULLPTR, NULLPTR;)
 
+#if defined HASH_PROT || defined CANARY_PROT
     errors error = verification(st);
-    if (error != NOERRORS)
+    if (error != NO_IMPORTANT_ERRORS)
         return error;
+#endif
 
     st->size = 0;
     st->capacity = 0;
     free(st->buffer);
     st->buffer = NULL;
+
+#ifdef HASH_PROT
     st->hash = 0;
+#endif
 
-    output_to_file(st);
+#ifdef CANARY_PROT
+    st->leftCanary = 0;
+    st->rightCanary = 0;
+#endif
 
-    return NOERRORS;
+    st->error = 0;
+
+    return NO_IMPORTANT_ERRORS;
 }
 
 #ifdef DEBUG

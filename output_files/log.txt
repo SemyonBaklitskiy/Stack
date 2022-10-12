@@ -1,0 +1,21 @@
+In file src/functions.cpp in function errors verification(stack*) on line 193 stack_dump called
+Stack "st" created in file src/main.cpp in function int main() on line 23
+Size = 5
+Capacity = 8
+Pointer to buffer = 0x55a6504e32a0
+Errors:
+   Mismatch between hashes
+Hash = 761759458
+Left canary in structure = BAADF00D
+Right canary in structure = BAADF00D
+Left canary in buffer = BAADF00D
+Right canary in buffer = BAADF00D
+data[0] = 0.000000
+data[1] = 1.000000
+data[2] = 2.000000
+data[3] = 0.000000
+data[4] = 4.000000
+data[5] = -0.000000
+data[6] = -0.000000
+data[7] = -0.000000
+............................................................
