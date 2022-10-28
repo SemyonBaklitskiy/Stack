@@ -169,17 +169,17 @@ static void stack_dump(struct stack* st, const char* file, const char* function,
     printf("Look at the output_files/log.txt\n");   
 }
 
-static errors verification(struct stack* st) {
+static int verification(struct stack* st) {
     my_assert_if(st == NULL, NULLPTR, NULLPTR;) 
     bool errorFound = false;
 
     if (st->capacity != st->info->capacity) {
-        st->error = MISMATCH_CAPACITY;
+        st->error |= MISMATCH_CAPACITY;
         errorFound = true;
     }
 
     if (st->size != st->info->size) {
-        st->error = MISMATCH_SIZE;
+        st->error |= MISMATCH_SIZE;
         errorFound = true;
     }
 
@@ -207,13 +207,10 @@ static errors verification(struct stack* st) {
     }
 #endif
 
-    if (errorFound) {
+    if (errorFound) 
         dump;
-        return MISMACH_STRUCT_CANARY;
 
-    } else {
-        return NO_IMPORTANT_ERRORS;
-    }
+    return st->error;
 }
 
 static errors resize(struct stack* st, const unsigned int oldCapacity, const unsigned int newCapacity) {
@@ -249,7 +246,7 @@ static errors resize(struct stack* st, const unsigned int oldCapacity, const uns
     return NO_IMPORTANT_ERRORS;
 }
 
-errors stack_constructor(struct stack* st, const int cp, const char* name, const char* file, const char* function, const int line) {
+int stack_constructor(struct stack* st, const int cp, const char* name, const char* file, const char* function, const int line) {
     my_assert_if(st == NULL, NULLPTR, NULLPTR;) 
 
     if (st->created) {
@@ -259,7 +256,7 @@ errors stack_constructor(struct stack* st, const int cp, const char* name, const
     }
 
     if ((cp <= 0) || (file == NULL) || (function == NULL) || (name == NULL)) {
-        st->error = 0;
+        st->error = NO_IMPORTANT_ERRORS;
         st->error |= WRONG_PARAMETERS;
         st->buffer = NULL;
         st->size = 0;
@@ -280,7 +277,7 @@ errors stack_constructor(struct stack* st, const int cp, const char* name, const
     st->file = file;
     st->function = function;
     st->line = line;
-    st->error = 0;
+    st->error = NO_IMPORTANT_ERRORS;
     st->created = true;
 
     st->info = (struct size_and_capacity_info*)calloc(1, sizeof(struct size_and_capacity_info));
@@ -343,7 +340,7 @@ static void stack_not_created(struct stack* st) {
     fclose(stream);
 }
 
-errors stack_push(struct stack* st, const elem_t element) {
+int stack_push(struct stack* st, const elem_t element) {
     my_assert_if(st == NULL, NULLPTR, NULLPTR;) 
 
     if (!st->created) {
@@ -357,7 +354,7 @@ errors stack_push(struct stack* st, const elem_t element) {
         return HAS_BEEN_DESTRUCTED;
     }
 
-    errors error = verification(st);
+    int error = verification(st);
     if (error != NO_IMPORTANT_ERRORS)
         return error;
 
@@ -423,7 +420,7 @@ errors stack_push(struct stack* st, const elem_t element) {
     return verification(st);
 }
 
-errors stack_pop(struct stack* st, elem_t* element) {
+int stack_pop(struct stack* st, elem_t* element) {
     my_assert_if(st == NULL, NULLPTR, NULLPTR;) 
 
     if (!st->created) {
@@ -437,7 +434,7 @@ errors stack_pop(struct stack* st, elem_t* element) {
         return HAS_BEEN_DESTRUCTED;
     }
 
-    errors error = verification(st);
+    int error = verification(st);
     if (error != NO_IMPORTANT_ERRORS)
         return error;
 
@@ -490,7 +487,7 @@ errors stack_pop(struct stack* st, elem_t* element) {
     return verification(st);
 }
 
-errors stack_destructor(struct stack* st) {
+int stack_destructor(struct stack* st) {
     my_assert_if(st == NULL, NULLPTR, NULLPTR;)
 
     if (!st->created) {
@@ -504,12 +501,9 @@ errors stack_destructor(struct stack* st) {
         return NO_IMPORTANT_ERRORS;
     }
 
-    errors error = verification(st);
-    if (error != NO_IMPORTANT_ERRORS)
-        return error;
-
     st->size = 0;
     st->capacity = 0;
+    free(st->info);
     free(st->buffer);
     st->buffer = NULL;
     st->destroyed = true;
@@ -523,7 +517,7 @@ errors stack_destructor(struct stack* st) {
     st->rightCanary = 0;
 #endif
 
-    st->error = 0;
+    st->error = NO_IMPORTANT_ERRORS;
 
     st->info->capacity = 0;
     st->info->size = 0;

@@ -68,13 +68,13 @@ struct stack {
 #endif
 };
 
-errors stack_constructor(struct stack* st, const int cp, const char* name, const char* file, const char* function, const int line);
+int stack_constructor(struct stack* st, const int cp, const char* name, const char* file, const char* function, const int line);
 
-errors stack_destructor(struct stack* st);
+int stack_destructor(struct stack* st);
 
-errors stack_pop(struct stack* st, elem_t* element);
+int stack_pop(struct stack* st, elem_t* element);
 
-errors stack_push(struct stack* st, const elem_t element);
+int stack_push(struct stack* st, const elem_t element);
 
 #ifdef DEBUG
 void debug(struct stack* st);
