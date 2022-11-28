@@ -503,6 +503,8 @@ int stack_destructor(struct stack* st) {
 
     st->size = 0;
     st->capacity = 0;
+    st->info->capacity = 0;
+    st->info->size = 0;
     free(st->info);
     free(st->buffer);
     st->buffer = NULL;
@@ -518,10 +520,6 @@ int stack_destructor(struct stack* st) {
 #endif
 
     st->error = NO_IMPORTANT_ERRORS;
-
-    st->info->capacity = 0;
-    st->info->size = 0;
-
     return NO_IMPORTANT_ERRORS;
 }
 
