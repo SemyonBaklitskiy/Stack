@@ -13,7 +13,7 @@ static void print_elements(elem_t* buffer, FILE* stream, unsigned int capacity);
 
 static const long unsigned int poison = 0XDEADDEAD;
 
-static const char logFile[] = "output_files/log.txt"; 
+static const char logFile[] = "../output_files/log.txt"; 
 
 #ifdef DEBUG
 const char debugFile[] = "output_files/debug.txt";
@@ -166,7 +166,7 @@ static void stack_dump(struct stack* st, const char* file, const char* function,
     info_in_logfile(st, stream);
 
     fclose(stream);
-    printf("Look at the output_files/log.txt\n");   
+    printf("Look at the ../output_files/log.txt\n");   
 }
 
 static int verification(struct stack* st) {
