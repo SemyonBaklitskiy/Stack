@@ -13,10 +13,10 @@ static void print_elements(elem_t* buffer, FILE* stream, unsigned int capacity);
 
 static const long unsigned int poison = 0XDEADDEAD;
 
-static const char logFile[] = "../output_files/log.txt"; 
+static const char logFile[] = "log.txt"; 
 
 #ifdef DEBUG
-const char debugFile[] = "output_files/debug.txt";
+const char debugFile[] = "debug.txt";
 #endif
 
 #ifdef CANARY_PROT
